@@ -327,15 +327,15 @@ class BaseSession(
             async for message in self._read_stream:
                 if isinstance(message, Exception):
                     await self._handle_incoming(message)
-                elif isinstance(message.message.root, JSONRPCRequest):
+                elif isinstance(message.root, JSONRPCRequest):
                     validated_request = self._receive_request_type.model_validate(
-                        message.message.root.model_dump(
+                        message.root.model_dump(
                             by_alias=True, mode="json", exclude_none=True
                         )
                     )
 
                     responder = RequestResponder(
-                        request_id=message.message.root.id,
+                        request_id=message.root.id,
                         request_meta=validated_request.root.params.meta
                         if validated_request.root.params
                         else None,
@@ -350,10 +350,10 @@ class BaseSession(
                     if not responder._completed:  # type: ignore[reportPrivateUsage]
                         await self._handle_incoming(responder)
 
-                elif isinstance(message.message.root, JSONRPCNotification):
+                elif isinstance(message.root, JSONRPCNotification):
                     try:
                         notification = self._receive_notification_type.model_validate(
-                            message.message.root.model_dump(
+                            message.root.model_dump(
                                 by_alias=True, mode="json", exclude_none=True
                             )
                         )
@@ -369,12 +369,12 @@ class BaseSession(
                         # For other validation errors, log and continue
                         logging.warning(
                             f"Failed to validate notification: {e}. "
-                            f"Message was: {message.message.root}"
+                            f"Message was: {message.root}"
                         )
                 else:  # Response or error
-                    stream = self._response_streams.pop(message.message.root.id, None)
+                    stream = self._response_streams.pop(message.root.id, None)
                     if stream:
-                        await stream.send(message.message.root)
+                        await stream.send(message.root)
                     else:
                         await self._handle_incoming(
                             RuntimeError(
